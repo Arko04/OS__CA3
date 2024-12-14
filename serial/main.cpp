@@ -9,6 +9,17 @@
 using namespace std;
 using namespace std::chrono;
 
+std::vector<float> generateRandomNumbers(float a, float b, float step, int count) {
+    std::vector<float> randomNumbers;
+    std::srand(static_cast<unsigned int>(std::time(0)));
+    for (int i = 0; i < count; ++i) {
+        float randomNumber = a + (std::rand() % static_cast<int>((b - a) / step + 1)) * step;
+        randomNumbers.push_back(randomNumber);
+    }
+    
+    return randomNumbers;
+}
+
 void readWavFile(const string& inputFile, vector<float>& data, SF_INFO& fileInfo) {
     auto start = high_resolution_clock::now();
     SNDFILE* inFile = sf_open(inputFile.c_str(), SFM_READ, &fileInfo);
@@ -32,8 +43,9 @@ void readWavFile(const string& inputFile, vector<float>& data, SF_INFO& fileInfo
     cout << "Read: " << duration.count() << " ms." << endl;
 }
 
-void apply_Bandpass_Filter(const vector<float>& data, vector<float>& bandpassFilterData, const float& df) {
+void apply_Bandpass_Filter(const vector<float>& data, vector<float>& bandpassFilterData) {
     auto start = high_resolution_clock::now();
+    const float df = 2;
     for (float f : data) {
         float H = (f * f) / (f * f + pow(df,2));
         bandpassFilterData.push_back(H * f);
@@ -43,8 +55,10 @@ void apply_Bandpass_Filter(const vector<float>& data, vector<float>& bandpassFil
     cout << "Bandpass Filter: " << duration.count() << " ms." << endl;
 }
 
-void apply_Notch_Filter(const vector<float>& data, vector<float>& notchFilterData, const float& f0, const int& n) {
+void apply_Notch_Filter(const vector<float>& data, vector<float>& notchFilterData) {
     auto start = high_resolution_clock::now();
+    const float f0 = 3;
+    const int n = 4;
     for (float f : data) {
         float H = 1 / (pow((f / f0), 2 * n) + 1);
         notchFilterData.push_back(H * f);
@@ -54,8 +68,9 @@ void apply_Notch_Filter(const vector<float>& data, vector<float>& notchFilterDat
     cout << "Notch Filter: " << duration.count() << " ms." << endl;
 }
 
-void apply_FIR_Filter(const vector<float>& data, vector<float>& firFilterData, const vector<float>& coefficients) {
+void apply_FIR_Filter(const vector<float>& data, vector<float>& firFilterData) {
     auto start = high_resolution_clock::now();
+    vector<float> coefficients = generateRandomNumbers(0.1, 10, 0.1, 100);
     int M = coefficients.size();
     for (size_t n = 0; n < data.size(); ++n) {
         float output = 0.0;
@@ -71,21 +86,23 @@ void apply_FIR_Filter(const vector<float>& data, vector<float>& firFilterData, c
     cout << "FIR Filter: " << duration.count() << " ms." << endl;
 }
 
-void apply_IIR_Filter(const vector<float>& data, vector<float>& iirFilterData, const vector<float>& b, const vector<float>& a) {
+void apply_IIR_Filter(const vector<float>& data, vector<float>& iirFilterData) {
     auto start = high_resolution_clock::now();
-    int M = b.size();
-    int N = a.size();
+    vector<float> iirFeedforward = generateRandomNumbers(0.1, 1, 0.1, 100);
+    vector<float> iirFeedback = generateRandomNumbers(-1, 1, 0.1, 100);
+    int M = iirFeedforward.size();
+    int N = iirFeedback.size();
 
     for (size_t n = 0; n < data.size(); ++n) {
         float output = 0.0;
         for (int k = 0; k < M; ++k) {
             if (n >= k) {
-                output += b[k] * data[n - k];
+                output += iirFeedforward[k] * data[n - k];
             }
         }
         for (int j = 1; j < N; ++j) {
             if (n >= j) {
-                output -= a[j] * iirFilterData[n - j];
+                output -= iirFeedback[j] * iirFilterData[n - j];
             }
         }
         iirFilterData.push_back(output);
@@ -115,24 +132,6 @@ void writeWavFile(const string& outputFile, const vector<float>& data, SF_INFO& 
     cout << "Successfully wrote " << numFrames << " frames to " << outputFile << endl;
 }
 
-std::vector<float> generateRandomNumbers(float a, float b, float step, int count) {
-    // float a = 10.0, b = 50.0, step = 2.0; int count = 5;
-    std::vector<float> randomNumbers;
-    
-    // Seed for random number generation
-    std::srand(static_cast<unsigned int>(std::time(0)));
-    // cout << "random numbers: ";
-    for (int i = 0; i < count; ++i) {
-        // Generate random number between a and b with step increments
-        float randomNumber = a + (std::rand() % static_cast<int>((b - a) / step + 1)) * step;
-        // cout << randomNumber << " ";
-        randomNumbers.push_back(randomNumber);
-    }
-    // cout << endl;
-    
-    return randomNumbers;
-}
-
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         cerr << "Usage: " << argv[0] << " <input_wav_file>" << endl;
@@ -151,28 +150,19 @@ int main(int argc, char* argv[]) {
     writeWavFile(outputFile, audioData, fileInfo);
 
     vector<float> bandpassFilterData;
-    const float df = 2;
-    apply_Bandpass_Filter(audioData, bandpassFilterData, df);
+    apply_Bandpass_Filter(audioData, bandpassFilterData);
     writeWavFile("serial_bandpass_filter_output.wav", bandpassFilterData, fileInfo);
 
     vector<float> notchFilterData;
-    const float f0 = 3;
-    const int n = 4;
-    apply_Notch_Filter(audioData, notchFilterData, f0, n);
+    apply_Notch_Filter(audioData, notchFilterData);
     writeWavFile("serial_notch_filter_output.wav", notchFilterData, fileInfo);
 
     vector<float> firFilterData;
-    // vector<float> firCoefficients = {0.2, 0.3, 0.5};
-    vector<float> firCoefficients = generateRandomNumbers(0.1, 10, 0.1, 1000);
-    apply_FIR_Filter(audioData, firFilterData, firCoefficients);
+    apply_FIR_Filter(audioData, firFilterData);
     writeWavFile("serial_fir_filter_output.wav", firFilterData, fileInfo);
 
     vector<float> iirFilterData;
-    // vector<float> iirFeedforward = {0.5, 0.2};
-    // vector<float> iirFeedback = {1.0, -0.5};
-    vector<float> iirFeedforward = generateRandomNumbers(0.1, 1, 0.1, 1000);
-    vector<float> iirFeedback = generateRandomNumbers(-1, 1, 0.1, 1000);
-    apply_IIR_Filter(audioData, iirFilterData, iirFeedforward, iirFeedback);
+    apply_IIR_Filter(audioData, iirFilterData);
     writeWavFile("serial_iir_filter_output.wav", iirFilterData, fileInfo);
 
     auto stop = high_resolution_clock::now();
