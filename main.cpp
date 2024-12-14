@@ -27,17 +27,14 @@ void readWavFile(const string& inputFile, vector<float>& data, SF_INFO& fileInfo
     std::cout << "Successfully read " << numFrames << " frames from " << inputFile << std::endl;
 }
 
-void apply_Bandpass_Filter(const vector<float>& data, vector<float>& bandpassFilterData) {
-    const float df = 2;
+void apply_Bandpass_Filter(const vector<float>& data, vector<float>& bandpassFilterData, const float& df) {
     for (float f : data) {
         float H = (f * f) / (f * f + df);
         bandpassFilterData.push_back(H);
     }
 }
 
-void apply_Notch_Filter(const vector<float>& data, vector<float>& notchFilterData) {
-    const float f0 = 2;
-    const int n = 2;
+void apply_Notch_Filter(const vector<float>& data, vector<float>& notchFilterData, const float &f0, const int &n) {
     for (float f : data) {
         float H = 1 / (pow((f / f0), 2 * n) + 1);
         notchFilterData.push_back(H);
@@ -80,7 +77,23 @@ void apply_IIR_Filter(const vector<float>& data, vector<float>& iirFilterData, c
     }
 }
 
+void writeWavFile(const std::string& outputFile, const std::vector<float>& data, SF_INFO& fileInfo) {
+    SNDFILE* outFile = sf_open(outputFile.c_str(), SFM_WRITE, &fileInfo);
+    if (!outFile) {
+        std::cerr << "Error opening output file: " << sf_strerror(NULL) << std::endl;
+        exit(1);
+    }
 
+    sf_count_t numFrames = sf_writef_float(outFile, data.data(), fileInfo.frames);
+    if (numFrames != fileInfo.frames) {
+        std::cerr << "Error writing frames to file." << std::endl;
+        sf_close(outFile);
+        exit(1);
+    }
+
+    sf_close(outFile);
+    std::cout << "Successfully wrote " << numFrames << " frames to " << outputFile << std::endl;
+}
 
 int main(int argc, char *argv[])
 {
@@ -92,10 +105,13 @@ int main(int argc, char *argv[])
     readWavFile(inputFile, audioData, fileInfo);
 
     vector<float> bandpassFilterData;
-    apply_Bandpass_Filter(audioData, bandpassFilterData);
+    const float df = 2;
+    apply_Bandpass_Filter(audioData, bandpassFilterData, df);
 
     vector<float> notchFilterData;
-    apply_Notch_Filter(audioData, notchFilterData);
+    const float f0 = 2;
+    const int n = 2;
+    apply_Notch_Filter(audioData, notchFilterData, f0, n);
 
     vector<float> firFilterData;
     vector<float> firCoefficients = {0.2, 0.3, 0.5}; 
@@ -105,6 +121,4 @@ int main(int argc, char *argv[])
     vector<float> iirFeedforward = {0.5, 0.2};
     vector<float> iirFeedback = {1.0, -0.5};
     apply_IIR_Filter(audioData, iirFilterData, iirFeedforward, iirFeedback);
-
-    
 }
