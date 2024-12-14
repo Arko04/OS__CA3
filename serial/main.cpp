@@ -8,7 +8,7 @@
 
 using namespace std;
 using namespace std::chrono;
-
+SF_INFO fileInfo;
 std::vector<float> generateRandomNumbers(float a, float b, float step, int count) {
     std::vector<float> randomNumbers;
     std::srand(static_cast<unsigned int>(std::time(0)));
@@ -42,42 +42,6 @@ void readWavFile(const string& inputFile, vector<float>& data, SF_INFO& fileInfo
     auto duration = duration_cast<milliseconds>(stop - start);
     cout << "Read: " << duration.count() << " ms." << endl;
 }
-
-// void apply_Bandpass_Filter(const vector<float>& data, vector<float>& bandpassFilterData) {
-//     float up = 1000;
-//     float down = 0;
-//     auto start = high_resolution_clock::now();
-//     const float df = 1;
-//     for (float f : data) {
-//         float H;
-//         if (f <= up && f >= down)
-//         {
-//             H = (f * f) / (f * f + pow(df, 2));
-//         }
-//         else
-//         {
-//             H = 0;
-//         }
-//         bandpassFilterData.push_back(H * f);
-//     }
-//     auto stop = high_resolution_clock::now();
-//     auto duration = duration_cast<milliseconds>(stop - start);
-//     cout << "Bandpass Filter: " << duration.count() << " ms." << endl;
-// }
-
-// void apply_Notch_Filter(const vector<float>& data, vector<float>& notchFilterData) {
-//     auto start = high_resolution_clock::now();
-//     const float f0 = 3;
-//     const int n = 4;
-//     for (float f : data) {
-//         float H = 1 / (pow((f / f0), 2 * n) + 1);
-//         notchFilterData.push_back(H * f);
-//     }
-//     auto stop = high_resolution_clock::now();
-//     auto duration = duration_cast<milliseconds>(stop - start);
-//     cout << "Notch Filter: " << duration.count() << " ms." << endl;
-// }
-
 
 void apply_Bandpass_Filter(const vector<float>& data, vector<float>& bandpassFilterData) {
     float up = 1e8;
@@ -188,7 +152,6 @@ int main(int argc, char* argv[]) {
     }
 
     string inputFile = argv[1];
-    SF_INFO fileInfo;
     vector<float> audioData;
 
     memset(&fileInfo, 0, sizeof(fileInfo));
