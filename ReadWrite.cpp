@@ -23,7 +23,7 @@ void readWavFile(const std::string& inputFile, std::vector<float>& data, SF_INFO
     std::cout << "Successfully read " << numFrames << " frames from " << inputFile << std::endl;
 }
 
-void writeWavFile(const std::string& outputFile, const std::vector<float>& data, const SF_INFO& fileInfo) {
+void writeWavFile(const std::string& outputFile, const std::vector<float>& data, SF_INFO& fileInfo) {
     SNDFILE* outFile = sf_open(outputFile.c_str(), SFM_WRITE, &fileInfo);
     if (!outFile) {
         std::cerr << "Error opening output file: " << sf_strerror(NULL) << std::endl;
