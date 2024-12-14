@@ -26,6 +26,7 @@ void readWavFile(const string& inputFile, vector<float>& data, SF_INFO& fileInfo
     }
 
     sf_close(inFile);
+    cout << "Successfully read " << numFrames << " frames from " << inputFile << endl;
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start);
     cout << "Read: " << duration.count() << " ms." << endl;
@@ -125,7 +126,9 @@ int main(int argc, char* argv[]) {
     memset(&fileInfo, 0, sizeof(fileInfo));
     auto start = high_resolution_clock::now();
 
+    string outputFile = "serial_output.wav";
     readWavFile(inputFile, audioData, fileInfo);
+    writeWavFile(outputFile, audioData, fileInfo);
 
     vector<float> bandpassFilterData;
     const float df = 2;
