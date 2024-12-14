@@ -43,12 +43,59 @@ void readWavFile(const string& inputFile, vector<float>& data, SF_INFO& fileInfo
     cout << "Read: " << duration.count() << " ms." << endl;
 }
 
+// void apply_Bandpass_Filter(const vector<float>& data, vector<float>& bandpassFilterData) {
+//     float up = 1000;
+//     float down = 0;
+//     auto start = high_resolution_clock::now();
+//     const float df = 1;
+//     for (float f : data) {
+//         float H;
+//         if (f <= up && f >= down)
+//         {
+//             H = (f * f) / (f * f + pow(df, 2));
+//         }
+//         else
+//         {
+//             H = 0;
+//         }
+//         bandpassFilterData.push_back(H * f);
+//     }
+//     auto stop = high_resolution_clock::now();
+//     auto duration = duration_cast<milliseconds>(stop - start);
+//     cout << "Bandpass Filter: " << duration.count() << " ms." << endl;
+// }
+
+// void apply_Notch_Filter(const vector<float>& data, vector<float>& notchFilterData) {
+//     auto start = high_resolution_clock::now();
+//     const float f0 = 3;
+//     const int n = 4;
+//     for (float f : data) {
+//         float H = 1 / (pow((f / f0), 2 * n) + 1);
+//         notchFilterData.push_back(H * f);
+//     }
+//     auto stop = high_resolution_clock::now();
+//     auto duration = duration_cast<milliseconds>(stop - start);
+//     cout << "Notch Filter: " << duration.count() << " ms." << endl;
+// }
+
+
 void apply_Bandpass_Filter(const vector<float>& data, vector<float>& bandpassFilterData) {
+    float up = 1e8;
+    float down = 0;
     auto start = high_resolution_clock::now();
-    const float df = 2;
-    for (float f : data) {
-        float H = (f * f) / (f * f + pow(df,2));
-        bandpassFilterData.push_back(H * f);
+    const float df = 1;
+    for (int i = 0; i < data.size(); i++) {
+        float H;
+        float f = (i * fileInfo.samplerate) / data.size();
+        if (f <= up && f >= down)
+        {
+            H = (f * f) / (f * f + pow(df, 2));
+        }
+        else
+        {
+            H = 0;
+        }
+        bandpassFilterData.push_back(H * data[i]);
     }
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start);
@@ -57,16 +104,18 @@ void apply_Bandpass_Filter(const vector<float>& data, vector<float>& bandpassFil
 
 void apply_Notch_Filter(const vector<float>& data, vector<float>& notchFilterData) {
     auto start = high_resolution_clock::now();
-    const float f0 = 3;
-    const int n = 4;
-    for (float f : data) {
+    const float f0 = 50;
+    const int n = 1;
+    for (int i = 0; i < data.size(); i++) {
+        float f = (i * fileInfo.samplerate) / data.size();
         float H = 1 / (pow((f / f0), 2 * n) + 1);
-        notchFilterData.push_back(H * f);
+        notchFilterData.push_back(H * data[i]);
     }
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start);
     cout << "Notch Filter: " << duration.count() << " ms." << endl;
 }
+
 
 void apply_FIR_Filter(const vector<float>& data, vector<float>& firFilterData) {
     auto start = high_resolution_clock::now();

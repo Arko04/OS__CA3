@@ -9,7 +9,7 @@
 
 using namespace std;
 using namespace std::chrono;
-    SF_INFO fileInfo;
+
 std::vector<float> generateRandomNumbers(float a, float b, float step, int count) {
     std::vector<float> randomNumbers;
     std::srand(static_cast<unsigned int>(std::time(0)));
@@ -45,38 +45,28 @@ void readWavFile(const string& inputFile, vector<float>& data, SF_INFO& fileInfo
 }
 
 void apply_Bandpass_Filter(const vector<float>& data, vector<float>& bandpassFilterData) {
-    float up = 1e8;
-    float down = 0;
     auto start = high_resolution_clock::now();
-    const float df = 0.2;
-    for (int i = 0; i < data.size(); i++) {
-        float H;
-        float f = (i * fileInfo.samplerate) / data.size();
-        if (f <= up && f >= down)
-        {
-            H = (f * f) / (f * f + pow(df, 2));
-        }
-        else
-        {
-            H = 0;
-        }
-        bandpassFilterData.push_back(H * data[i]);
+    const float df = 2;
+    for (float f : data) {
+        float H = (f * f) / (f * f + pow(df, 2));
+        bandpassFilterData.push_back(H * f);
     }
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start);
+    // cout << "Bandpass Filter: " << duration.count() << " ms." << endl;
 }
 
 void apply_Notch_Filter(const vector<float>& data, vector<float>& notchFilterData) {
     auto start = high_resolution_clock::now();
-    const float f0 = 50;
-    const int n = 1;
-    for (int i = 0; i < data.size(); i++) {
-        float f = (i * fileInfo.samplerate) / data.size();
+    const float f0 = 3;
+    const int n = 4;
+    for (float f : data) {
         float H = 1 / (pow((f / f0), 2 * n) + 1);
-        notchFilterData.push_back(H * data[i]);
+        notchFilterData.push_back(H * f);
     }
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start);
+    // cout << "Notch Filter: " << duration.count() << " ms." << endl;
 }
 
 void apply_FIR_Filter(const vector<float>& data, vector<float>& firFilterData) {
@@ -94,6 +84,7 @@ void apply_FIR_Filter(const vector<float>& data, vector<float>& firFilterData) {
     }
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start);
+    // cout << "FIR Filter: " << duration.count() << " ms." << endl;
 }
 
 void apply_IIR_Filter(const vector<float>& data, vector<float>& iirFilterData) {
@@ -119,6 +110,7 @@ void apply_IIR_Filter(const vector<float>& data, vector<float>& iirFilterData) {
     }
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start);
+    // cout << "IIR Filter: " << duration.count() << " ms." << endl;
 }
 
 void writeWavFile(const string& outputFile, const vector<float>& data, SF_INFO& fileInfo) {
@@ -138,31 +130,45 @@ void writeWavFile(const string& outputFile, const vector<float>& data, SF_INFO& 
     }
 
     sf_close(outFile);
+    // cout << "Successfully wrote " << numFrames << " frames to " << outputFile << endl;
 }
 
 int processWithThreads(int numThreads, const vector<float>& data, void (*filterFunc)(const vector<float>&, vector<float>&), vector<float>& result) {
-
+    // Split the data into chunks
     int chunkSize = data.size() / numThreads;
     vector<vector<float>> dataChunks(numThreads);
     vector<thread> threads;
 
+    // Split the data across threads
     for (int i = 0; i < numThreads; ++i) {
         int startIdx = i * chunkSize;
         int endIdx = (i == numThreads - 1) ? data.size() : (i + 1) * chunkSize;
         dataChunks[i] = vector<float>(data.begin() + startIdx, data.begin() + endIdx);
     }
-    vector<vector<float>> filterResults(numThreads);
 
+    // Apply filter in parallel
+    vector<vector<float>> filterResults(numThreads);
+    
+    // Record the start time of the entire thread execution
     auto overallStart = high_resolution_clock::now();
 
     for (int i = 0; i < numThreads; ++i) {
         threads.push_back(thread(filterFunc, ref(dataChunks[i]), ref(filterResults[i])));
     }
+
+    // Wait for threads to finish
     for (auto& t : threads) {
         t.join();
     }
+
+    // Record the end time after threads have finished
     auto overallEnd = high_resolution_clock::now();
     auto overallDuration = duration_cast<milliseconds>(overallEnd - overallStart);
+
+    // Output the total execution time
+    // cout << "Total execution time for " << numThreads << " threads: " << overallDuration.count() << " ms." << endl;
+    // cout <<"--------------------------------------------"<<endl;
+    // Combine results
     for (int i = 0; i < numThreads; ++i) {
         result.insert(result.end(), filterResults[i].begin(), filterResults[i].end());
     }
@@ -177,39 +183,47 @@ int main(int argc, char* argv[]) {
     }
 
     string inputFile = argv[1];
-
+    SF_INFO fileInfo;
     vector<float> audioData;
 
     memset(&fileInfo, 0, sizeof(fileInfo));
     auto start = high_resolution_clock::now();
 
     readWavFile(inputFile, audioData, fileInfo);
-    writeWavFile("parallel_output.wav", audioData, fileInfo);
+    readWavFile("parallel_output.wav", audioData, fileInfo);
 
+    // Test different numbers of threads for each filter
     vector<int> threadCounts;
     for (int i = 1; i <= 100; ++i) {
         threadCounts.push_back(i);
-    }
+    }// Different thread counts to test
 
+    //////////////////////////////////////////////////////////////////////////////////////////
     int num_threads = -1;
     int lowest_overall_duration = 1e9;
+    // Apply Bandpass Filter with varying threads
     for (int threads : threadCounts) {
+        // cout << "Applying Bandpass Filter with " << threads << " threads..." << endl;
         vector<float> bandpassFilterData;
         int overall_duration = processWithThreads(threads, audioData, apply_Bandpass_Filter, bandpassFilterData);
+        // writeWavFile("bandpass_filter_output_" + to_string(threads) + "_threads.wav", bandpassFilterData, fileInfo);
         if(lowest_overall_duration > overall_duration)
         {
             num_threads = threads;
             lowest_overall_duration = overall_duration;
         }
     }
-    vector<float> bandpassFilterData;
-    int overall_duration = processWithThreads(num_threads, audioData, apply_Bandpass_Filter, bandpassFilterData);
+            vector<float> bandpassFilterData;
+       int overall_duration = processWithThreads(num_threads, audioData, apply_Bandpass_Filter, bandpassFilterData);
     writeWavFile("parallel_bandpass_filter_output.wav", bandpassFilterData, fileInfo);
-    cout << ">>>>>for Bandpass Filter with " << num_threads << " threads: "<<lowest_overall_duration <<" ms. "<<endl;
+    cout << ">>>>>for Bandpass Filter " << num_threads << ": "<<lowest_overall_duration <<endl;
 
+    //////////////////////////////////////////////////////////////////////////////////////////
     num_threads = -1;
     lowest_overall_duration = 1e9;
+    // Apply Notch Filter with varying threads
     for (int threads : threadCounts) {
+        // cout << "Applying Notch Filter with " << threads << " threads..." << endl;
         vector<float> notchFilterData;
         int overall_duration = processWithThreads(threads, audioData, apply_Notch_Filter, notchFilterData);
         if(lowest_overall_duration > overall_duration)
@@ -221,13 +235,17 @@ int main(int argc, char* argv[]) {
     vector<float> notchFilterData;
     overall_duration = processWithThreads(num_threads, audioData, apply_Notch_Filter, notchFilterData);
     writeWavFile("parallel_notch_filter_output.wav", notchFilterData, fileInfo);
-    cout << ">>>>>for Notch Filter with " << num_threads << " threads: "<<lowest_overall_duration <<" ms. "<<endl;
+    cout << ">>>>>for Notch Filter " << num_threads << ": "<<lowest_overall_duration <<endl;
 
+    //////////////////////////////////////////////////////////////////////////////////////////
     num_threads = -1;
     lowest_overall_duration = 1e9;
+    // Apply FIR Filter with varying threads
     for (int threads : threadCounts) {
+        // cout << "Applying FIR Filter with " << threads << " threads..." << endl;
         vector<float> firFilterData;
         int overall_duration = processWithThreads(threads, audioData, apply_FIR_Filter, firFilterData);
+        // writeWavFile("fir_filter_output_" + to_string(threads) + "_threads.wav", firFilterData, fileInfo);
         if(lowest_overall_duration > overall_duration)
         {
             num_threads = threads;
@@ -237,13 +255,17 @@ int main(int argc, char* argv[]) {
     vector<float> firFilterData;
     overall_duration = processWithThreads(num_threads, audioData, apply_FIR_Filter, firFilterData);
     writeWavFile("parallel_fir_filter_output.wav", firFilterData, fileInfo);
-    cout << ">>>>>for FIR Filter with " << num_threads << " threads: "<<lowest_overall_duration << " ms. "<<endl;
+    cout << ">>>>>for FIR Filter " << num_threads << ": "<<lowest_overall_duration <<endl;
 
+    //////////////////////////////////////////////////////////////////////////////////////////
     num_threads = -1;
     lowest_overall_duration = 1e9;
+    // Apply IIR Filter with varying threads
     for (int threads : threadCounts) {
+        // cout << "Applying IIR Filter with " << threads << " threads..." << endl;
         vector<float> iirFilterData;
         int overall_duration = processWithThreads(threads, audioData, apply_IIR_Filter, iirFilterData);
+        // writeWavFile("iir_filter_output_" + to_string(threads) + "_threads.wav", iirFilterData, fileInfo);
         if(lowest_overall_duration > overall_duration)
         {
             num_threads = threads;
@@ -253,8 +275,9 @@ int main(int argc, char* argv[]) {
     vector<float> iirFilterData;
     overall_duration = processWithThreads(num_threads, audioData, apply_IIR_Filter, iirFilterData);
     writeWavFile("parallel_iir_filter_output.wav", iirFilterData, fileInfo);
-    cout << ">>>>>for IIR Filter with " << num_threads << " threads: "<<lowest_overall_duration << " ms. " <<endl;
+    cout << ">>>>>for IIR Filter " << num_threads << ": "<<lowest_overall_duration <<endl;
 
+    //////////////////////////////////////////////////////////////////////////////////////////
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start);
     cout << "Execution: " << duration.count() << " ms." << endl;
