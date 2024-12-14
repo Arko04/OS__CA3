@@ -142,7 +142,7 @@ void writeWavFile(const string& outputFile, const vector<float>& data, SF_INFO& 
     }
 
     sf_close(outFile);
-    cout << "Successfully wrote " << numFrames << " frames to " << outputFile << endl;
+    // cout << "Successfully wrote " << numFrames << " frames to " << outputFile << endl;
 }
 
 int main(int argc, char* argv[]) {
