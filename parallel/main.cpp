@@ -205,7 +205,7 @@ int main(int argc, char* argv[]) {
     vector<float> bandpassFilterData;
     int overall_duration = processWithThreads(num_threads, audioData, apply_Bandpass_Filter, bandpassFilterData);
     writeWavFile("parallel_bandpass_filter_output.wav", bandpassFilterData, fileInfo);
-    cout << ">>>>>for Bandpass Filter with " << num_threads << " threads: "<<lowest_overall_duration <<" ms. "<<endl;
+    cout << "Bandpass Filter with " << num_threads << " threads: "<<lowest_overall_duration <<" ms. "<<endl;
 
     num_threads = -1;
     lowest_overall_duration = 1e9;
@@ -221,7 +221,7 @@ int main(int argc, char* argv[]) {
     vector<float> notchFilterData;
     overall_duration = processWithThreads(num_threads, audioData, apply_Notch_Filter, notchFilterData);
     writeWavFile("parallel_notch_filter_output.wav", notchFilterData, fileInfo);
-    cout << ">>>>>for Notch Filter with " << num_threads << " threads: "<<lowest_overall_duration <<" ms. "<<endl;
+    cout << "Notch Filter with " << num_threads << " threads: "<<lowest_overall_duration <<" ms. "<<endl;
 
     num_threads = -1;
     lowest_overall_duration = 1e9;
@@ -237,7 +237,7 @@ int main(int argc, char* argv[]) {
     vector<float> firFilterData;
     overall_duration = processWithThreads(num_threads, audioData, apply_FIR_Filter, firFilterData);
     writeWavFile("parallel_fir_filter_output.wav", firFilterData, fileInfo);
-    cout << ">>>>>for FIR Filter with " << num_threads << " threads: "<<lowest_overall_duration << " ms. "<<endl;
+    cout << "FIR Filter with " << num_threads << " threads: "<<lowest_overall_duration << " ms. "<<endl;
 
     num_threads = -1;
     lowest_overall_duration = 1e9;
@@ -253,7 +253,7 @@ int main(int argc, char* argv[]) {
     vector<float> iirFilterData;
     overall_duration = processWithThreads(num_threads, audioData, apply_IIR_Filter, iirFilterData);
     writeWavFile("parallel_iir_filter_output.wav", iirFilterData, fileInfo);
-    cout << ">>>>>for IIR Filter with " << num_threads << " threads: "<<lowest_overall_duration << " ms. " <<endl;
+    cout << "IIR Filter with " << num_threads << " threads: "<<lowest_overall_duration << " ms. " <<endl;
 
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start);
