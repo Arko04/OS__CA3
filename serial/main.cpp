@@ -20,6 +20,10 @@ std::vector<float> generateRandomNumbers(float a, float b, float step, int count
     return randomNumbers;
 }
 
+vector<float> coefficients = generateRandomNumbers(0.1, 10, 0.1, 100);
+vector<float> iirFeedforward = generateRandomNumbers(0.9, 1.1, 0.1, 100);
+vector<float> iirFeedback = generateRandomNumbers(0.9, 1.1, 0.1, 100);
+
 void readWavFile(const string& inputFile, vector<float>& data, SF_INFO& fileInfo) {
     auto start = high_resolution_clock::now();
     SNDFILE* inFile = sf_open(inputFile.c_str(), SFM_READ, &fileInfo);
@@ -50,7 +54,7 @@ void apply_Bandpass_Filter(const vector<float>& data, vector<float>& bandpassFil
     const float df = 1;
     for (int i = 0; i < data.size(); i++) {
         float H;
-        float f = (i * fileInfo.samplerate) / data.size();
+        float f =  data[i];
         if (f <= up && f >= down)
         {
             H = (f * f) / (f * f + pow(df, 2));
@@ -59,7 +63,7 @@ void apply_Bandpass_Filter(const vector<float>& data, vector<float>& bandpassFil
         {
             H = 0;
         }
-        bandpassFilterData.push_back(H * data[i]);
+        bandpassFilterData.push_back(H * f);
     }
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start);
@@ -71,9 +75,9 @@ void apply_Notch_Filter(const vector<float>& data, vector<float>& notchFilterDat
     const float f0 = 50;
     const int n = 1;
     for (int i = 0; i < data.size(); i++) {
-        float f = (i * fileInfo.samplerate) / data.size();
+        float f = data[i];
         float H = 1 / (pow((f / f0), 2 * n) + 1);
-        notchFilterData.push_back(H * data[i]);
+        notchFilterData.push_back(H * f);
     }
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start);
@@ -83,7 +87,6 @@ void apply_Notch_Filter(const vector<float>& data, vector<float>& notchFilterDat
 
 void apply_FIR_Filter(const vector<float>& data, vector<float>& firFilterData) {
     auto start = high_resolution_clock::now();
-    vector<float> coefficients = generateRandomNumbers(0.1, 10, 0.1, 100);
     int M = coefficients.size();
     for (size_t n = 0; n < data.size(); ++n) {
         float output = 0.0;
@@ -101,8 +104,6 @@ void apply_FIR_Filter(const vector<float>& data, vector<float>& firFilterData) {
 
 void apply_IIR_Filter(const vector<float>& data, vector<float>& iirFilterData) {
     auto start = high_resolution_clock::now();
-    vector<float> iirFeedforward = generateRandomNumbers(0.1, 1, 0.1, 100);
-    vector<float> iirFeedback = generateRandomNumbers(-1, 1, 0.1, 100);
     int M = iirFeedforward.size();
     int N = iirFeedback.size();
 
